@@ -1,0 +1,203 @@
+---
+title: "summary_statistics"
+author: "Zhenlin Kang"
+date: "2022-10-21"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r cars}
+library(base)
+library(kim)
+```
+
+The data was collected in 2012, measuring preferences for a nationally representative sample for 76 countries. I will use this dataset to explore the impacts of income level and cultural variables on country-level time preference, risk preference, altruism, trust, positive reciprocity, and negative reciprocity.
+
+The survey data has already been cleaned when I retrieved it. I linked the preference data with world development indicators and hofstede cultural measures (see create_dataset.R)
+
+```{r pressure, echo=FALSE}
+# load data
+country <- read.csv("/Users/janine/Library/Mobile Documents/com~apple~CloudDocs/Documents/SS224/Zhenlin_Kang_a2_ss224_2022/data/input/country_econ_culture.csv")
+```
+
+We first look at the distribution of country-level preference variables, measured as standard deviation from the global individual mean.
+
+As shown in the histogram and summary statistics, the median country is socially impatient. Most impatient countries have their patience level within one standard deviation of the global average individual level. In contrast, there is substantial heterogeneity in patience level among those socially patient countries. Similar pattern has been seen in risk taking.
+
+```{r, cache = TRUE}
+hist(country$patience, xlab = "patience", ylab = "frequency"
+     , main = "distribution of patience level")
+```
+
+```{r, cache = TRUE}
+summary(country$patience)
+```
+
+```{r, cache = TRUE}
+hist(country$patience, xlab = "risk taking", ylab = "frequency"
+     , main = "distribution of risk taking level")
+```
+
+```{r, cache = TRUE}
+summary(country$risktaking)
+```
+
+Trust, altruism and negative reciprocity level are more symmetrically distributed across countries.
+
+```{r, cache = TRUE}
+hist(country$trust, xlab = "trust", ylab = "frequency"
+     , main = "distribution of trust level")
+```
+
+```{r, cache = TRUE}
+summary(country$trust)
+```
+
+```{r, cache = TRUE}
+hist(country$altruism, xlab = "altruism", ylab = "frequency"
+     , main = "distribution of altruism level")
+```
+
+```{r, cache = TRUE}
+summary(country$altruism)
+```
+
+```{r, cache = TRUE}
+hist(country$negrecip, xlab = "negative reciprocity", ylab = "frequency"
+     , main = "distribution of negative reciprocity level")
+```
+
+```{r, cache = TRUE}
+summary(country$negrecip)
+```
+
+The distribution of positive reciprocity is skewed to the left and more spread out than negative reciprocity.
+
+```{r, cache = TRUE}
+hist(country$posrecip, xlab = "positive reciprocity", ylab = "frequency"
+     , main = "distribution of positive reciprocity level")
+```
+
+```{r, cache = TRUE}
+summary(country$posrecip)
+```
+
+Next, we look at the correlation of preferences. The direction of correlation is consistent with expectation
+
+```{r, cache = TRUE}
+preference <- data.frame(matrix(ncol = 0, nrow = 76))
+preference$patience <- country$patience
+preference$risktaking <- country$risktaking
+preference$altruism <- country$altruism
+preference$trust <- country$trust
+preference$posrecip <- country$posrecip
+preference$negrecip <- country$negrecip
+correlation <- correlation_matrix(data = preference
+, var_names = c("patience", "risktaking", "altruism", "trust", "posrecip", "negrecip")
+, output_type = "rp")
+correlation
+```
+
+Finally, we check the correlation between income and preferences
+
+Poorer countries are on average more impatient, consistent with previous findings.
+
+```{r, cache = TRUE}
+# create binary variables for income category
+country$low <- ifelse(country$income == "Low income", 1, 0)
+country$lowmiddle <- ifelse(country$income == "Lower middle income", 1, 0)
+country$uppermiddle <- ifelse(country$income == "Upper middle income", 1, 0)
+country$high <- ifelse(country$income == "High income", 1, 0)
+reg1 <- lm(patience ~ low + lowmiddle + uppermiddle, data = country)
+summary(reg1)
+```
+
+Risk taking is positively associated with income level. This contradicts expected utility theory (which typically assumes DARA).
+
+```{r, cache = TRUE}
+reg2 <- lm(risktaking ~ low + lowmiddle + uppermiddle, data = country)
+summary(reg2)
+```
+
+Altruism level doesn't change monotonically with respect to income level. Note coefficients on low and upper middle income category is insignificant.
+
+```{r, cache = TRUE}
+reg3 <- lm(altruism ~ low + lowmiddle + uppermiddle, data = country)
+summary(reg3)
+```
+
+Let's try to find the relationship between altruism level and GDP per capita. It turns out that the two are uncorrelated.
+
+```{r, cache = TRUE}
+reg4 <- lm(altruism ~ gdppc, data = country)
+summary(reg4)
+```
+
+Trust level increases in income
+
+```{r, cache = TRUE}
+reg5 <- lm(trust ~ low + lowmiddle + uppermiddle, data = country)
+summary(reg5)
+```
+
+Positive reciprocity is uncorrelated with income
+
+```{r, cache = TRUE}
+reg6 <- lm(posrecip ~ low + lowmiddle + uppermiddle, data = country)
+summary(reg6)
+```
+
+Negative reciprocity increases in income
+
+```{r, cache = TRUE}
+reg7 <- lm(negrecip ~ low + lowmiddle + uppermiddle, data = country)
+summary(reg7)
+```
+
+We now investigate the relationship between Hofstede cultural dimensions and preferences. The definitions of Hofstede cultural dimensions are given below:
+
+PDI (power distance index) measures the degree to which the less powerful members of a society accept and expect that power is distributed unequally
+
+IDV (individualism vs collectivism)
+
+MAS (masculinity vs femininity)
+
+UAI (uncertainty avoidance index) measures the degree to which the members of a society feel uncomfortable with uncertainty and ambiguity.
+
+LTOWVS (long term orientation vs short term normative orientation: societies who score low on this dimension, for example, prefer to maintain time-honoured traditions and norms while viewing societal change with suspicion.
+
+Surprisingly, country-level patience is uncorrelated with long term vs short term orientation and uncertainty avoidance index (which is also a measure for risk preference and risk preference is correlated with time preference as shown in the correlation matrix). Masculine societies are more impatient, in line with the gender differences in patience at individual level.
+
+```{r, cache = TRUE}
+reg8 <- lm(patience ~ gdppc + uai + ltowvs + mas, data = country)
+summary(reg8)
+```
+
+Risk taking is uncorrelated with UAI. Note that 50 observations are dropped due to missing values. That's probably why we didn't find proper correlations.
+
+```{r, cache = TRUE}
+reg9 <- lm(risktaking ~ gdppc + uai + idv + ltowvs + mas, data = country)
+summary(reg9)
+```
+
+```{r, cache = TRUE}
+reg10 <- lm(posrecip ~ gdppc + pdi + idv + ltowvs + mas, data = country)
+summary(reg10)
+```
+
+```{r, cache = TRUE}
+reg11 <- lm(negrecip ~ gdppc + pdi + idv + ltowvs + mas, data = country)
+summary(reg11)
+```
+
+```{r, cache = TRUE}
+reg12 <- lm(trust ~ gdppc + pdi + idv + ltowvs + mas, data = country)
+summary(reg12)
+```
+
+Need to find a more complete dataset for cultural variables.
